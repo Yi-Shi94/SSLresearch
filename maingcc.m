@@ -1,4 +1,4 @@
-nclear all
+clear all
 close all
 ad = 'C:\YiSHI\AD1974Driver\Matlab\branches\wav\test_left.wav';
 [x, fs] = audioread(ad);
@@ -56,7 +56,7 @@ plot(Rxy)
 shift1
 %}
 
-
+T = 1/fs 
 Nsample = 100;
 n=1:Nsample;
 y1=sin(2*pi*n/50);
@@ -64,7 +64,7 @@ y2=sin(2*pi*(n+5)/50);
 y1 = x(1:Nsample,3)';
 y2 = x(1:Nsample,1)';
 
-FFTLength=400;
+FFTLength= 200;
 Rxx = xcorr(y1);
 Ryy = xcorr(y2);
 Rxy = xcorr(y1,y2);
@@ -82,9 +82,8 @@ G = fftshift(R,1);
 [maxvalue,shift] = max(G);
 figure(1);
 plot(G);
-shift = shift/48000
+shift = shift/fs
 title('Plain Time Cross Correlation');
-
 
 % PHAT Filter
 W = 1./(1.0e-4 + abs(Sxy));
@@ -95,7 +94,7 @@ G = fftshift(real(ifft(R)),1);
 figure(2);
 plot(G);
 [maxvalue1,shift1] = max(G);
-shift1
+shift1 = shift1/fs
 title('GCC PHAT ');
 
 % ROTH Filter
