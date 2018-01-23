@@ -1,16 +1,16 @@
 clear all
 close all
-ad = 'C:\YiSHI\AD1974Driver\Matlab\branches\wav\test_left.wav';
+ad = 'C:\YiSHI\AD1974Driver\Matlab\branches\wav\1kdig_left.wav';
 [x, fs] = audioread(ad);
 
 micNum = size(x,2);
 cpNum = (micNum-1)*micNum/2;
 
 stsample = 1;
-nsample = 512;
+nsample = 4096;
 L = nsample-stsample+1;
 T = 1/fs;
-x = x(stsample:nsample,:);
+x = x(stsample:2*nsample,:);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%show spectrum of input sound channel and find prominent freq band%
@@ -33,35 +33,92 @@ xlabel('f (Hz)')
 ylabel('|P1(f)|')
 
 [val,ind] = max(P1);
-MajorFreq = fs/L*ind
-pause;
+MajorFreq = fs/L*ind;
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%show gcc-phat of channel1 and channel2 
-G1 = gccphat(x(:,4), x(:,2), fs);
-plot(G1)
-[val,ind]= max(G1);
-delay = (ind)/fs
 
-tempC=24.0;
-Vsound=331.4*sqrt(1.0+(tempC/273))
+tempC = 18.0;
+Vsound = 331.4*sqrt(1.0+(tempC/273))
+VsoundN = 300;
 endFireDisMin = 0.015; %distance between two mics
-endFireDisMinEst = Vsound * delay
-ErrorDis = endFireDisMinEst - endFireDisMin 
+%{
+G1 = gccphat(x(:,1), x(:,2),fs);
+[val,ind]= max(G1);
+delay = (ind-L)/fs
 
-gccMatrix = zeros(micNum,micNum,L*2);
+endFireDisMinEst = Vsound * delay
+ErrorDis = abs(abs(endFireDisMinEst) - endFireDisMin)
+
+gccMatrix = zeros(micNum,micNum,L/2+1);
+gccMaxMatrix = zeros(micNum,micNum);
 
 for m = 1 : micNum
     for d = m+1 : micNum
-        gccMatrix(m,d,:)=gccphat(x(:,m), x(:,d), fs);
+        gccMatrix(m,d,:) = gccphat(x(:,m), x(:,d), fs);
+        gccMaxMatrix(m,d) = max(gccMatrix(m,d,:));
     end
 end
+%}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-[val,ind] = max(gccMatrix);
+stride = 1;
+azNum = 180/stride + 1;
+elNum = azNum;
+mic_pos = [1 1 1;1 1.015 1; 1 1.03 1; 1 1.045 1];
+thfL = 2000; %15khz-17khz
+thfH = 5000;
+fdirSeq = 0.00001; 
 
 
+s1 = x(stsample:nsample,1);
+s2 = x(stsample:nsample,2);
+s3 = x(stsample:nsample,3);
+s4 = x(stsample:nsample,4);
+
+X_1 = myfft(s1);
+X_2 = myfft(s2);
+X_3 = myfft(s3);
+X_4 = myfft(s4);
+dir  = zeros(4,1);
+srpMatrix = zeros(fix(180/stride+1),fix(180/stride+1));
+sa = size(X_1)
+
+for azAngle = -90:stride:90
+    for elAngle = 0:stride:180
+        
+        x = sin(elAngle)*cos(azAngle); 
+        y = sin(elAngle)*sin(azAngle); 
+        z = cos(elAngle); 
  
+        dir(1,:) = (x*mic_pos(1,1)+y*mic_pos(1,2)+z*mic_pos(1,3))./Vsound; 
+        dir(2,:) = (x*mic_pos(2,1)+y*mic_pos(2,2)+z*mic_pos(2,3))./Vsound+fdirSeq; 
+        dir(3,:) = (x*mic_pos(3,1)+y*mic_pos(3,2)+z*mic_pos(3,3))./Vsound+fdirSeq*2; 
+     	dir(4,:) = (x*mic_pos(4,1)+y*mic_pos(4,2)+z*mic_pos(4,3))./Vsound+fdirSeq*3; 
+        p = 0; 
+        s = 0; 
+        for  frq=fix((thfL/fs)*L):fix((thfH/fs)*L)
+            tmp = 2*pi*frq/(L/fs)*dir(1,:)*1j; 
+     		s = s+X_1(frq)*exp(tmp); 
+ 			tmp = 2*pi*frq/(L/fs)*dir(2,:)*1j; 
+     		s = s+X_2(frq)*exp(tmp); 
+            tmp = 2*pi*frq/(L/fs)*dir(3,:)*1j; 
+     		s = s+X_3(frq)*exp(tmp); 
+            tmp = 2*pi*frq/(L/fs)*dir(4,:)*1j; 
+     		s = s+X_4(frq)*exp(tmp); 
+            p = p + abs(s)^2; 
+        end
+        srpMatrix((azAngle+90)/stride+1,(elAngle)/stride+1)= srpMatrix((azAngle+90)/stride+1,(elAngle)/stride+1) + p; 
+     end
+end
+
+surf(srpMatrix)
+
+[rowsOfMaxes,colsOfMaxes] = find(srpMatrix == max(srpMatrix(:)));
+azAngleMax = (rowsOfMaxes-1)*stride-90
+elAngleMax = (colsOfMaxes-1)*stride
 
 
 
