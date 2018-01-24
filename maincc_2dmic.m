@@ -1,13 +1,13 @@
 clear all
 close all
-ad = 'C:\YiSHI\AD1974Driver\Matlab\branches\wav\1kdig_left.wav';
+ad = 'C:\YiSHI\AD1974Driver\Matlab\branches\wav\test_right.wav';
 [x, fs] = audioread(ad);
 
 micNum = size(x,2);
 cpNum = (micNum-1)*micNum/2;
 
 stsample = 1;
-nsample = 4096;
+nsample = 2^5;
 L = nsample-stsample+1;
 T = 1/fs;
 x = x(stsample:2*nsample,:);
@@ -62,14 +62,19 @@ for m = 1 : micNum
     end
 end
 %}
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%delay and sum...
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+freqDes = 16000;
+freqSpan = 2000;
 stride = 1;
+disSearch = 1;
 azNum = 180/stride + 1;
 elNum = azNum;
-mic_pos = [1 1 1;1 1.015 1; 1 1.03 1; 1 1.045 1];
-thfL = 2000; %15khz-17khz
-thfH = 5000;
+mic_pos = [1 1 1; 1 1.015 1; 1 1.03 1; 1 1.045 1];
+thfL = freqDes - freqSpan; %15khz-17khz
+thfH = freqDes + freqSpan;
 fdirSeq = 0.00001; 
 
 
@@ -78,20 +83,25 @@ s2 = x(stsample:nsample,2);
 s3 = x(stsample:nsample,3);
 s4 = x(stsample:nsample,4);
 
-X_1 = myfft(s1);
-X_2 = myfft(s2);
-X_3 = myfft(s3);
-X_4 = myfft(s4);
+X1 = myfft(s1);
+X2 = myfft(s2);
+X3 = myfft(s3);
+X4 = myfft(s4);
+
 dir  = zeros(4,1);
 srpMatrix = zeros(fix(180/stride+1),fix(180/stride+1));
-sa = size(X_1)
+sa = size(X1)
+
 
 for azAngle = -90:stride:90
     for elAngle = 0:stride:180
         
-        x = sin(elAngle)*cos(azAngle); 
-        y = sin(elAngle)*sin(azAngle); 
-        z = cos(elAngle); 
+        
+        azRadian = azAngle/180*pi;
+        elRadian = elAngle/180*pi;
+        x = disSearch*sin(elRadian)*cos(azRadian); 
+        y = disSearch*sin(elRadian)*sin(azRadian); 
+        z = disSearch*cos(elRadian); 
  
         dir(1,:) = (x*mic_pos(1,1)+y*mic_pos(1,2)+z*mic_pos(1,3))./Vsound; 
         dir(2,:) = (x*mic_pos(2,1)+y*mic_pos(2,2)+z*mic_pos(2,3))./Vsound+fdirSeq; 
@@ -101,15 +111,16 @@ for azAngle = -90:stride:90
         s = 0; 
         for  frq=fix((thfL/fs)*L):fix((thfH/fs)*L)
             tmp = 2*pi*frq/(L/fs)*dir(1,:)*1j; 
-     		s = s+X_1(frq)*exp(tmp); 
+     		s = s+X1(frq)*exp(tmp); 
  			tmp = 2*pi*frq/(L/fs)*dir(2,:)*1j; 
-     		s = s+X_2(frq)*exp(tmp); 
+     		s = s+X2(frq)*exp(tmp); 
             tmp = 2*pi*frq/(L/fs)*dir(3,:)*1j; 
-     		s = s+X_3(frq)*exp(tmp); 
+     		s = s+X3(frq)*exp(tmp); 
             tmp = 2*pi*frq/(L/fs)*dir(4,:)*1j; 
-     		s = s+X_4(frq)*exp(tmp); 
-            p = p + abs(s)^2; 
+     		s = s+X4(frq)*exp(tmp); 
+            p = p + abs(s); 
         end
+        p = p^2;
         srpMatrix((azAngle+90)/stride+1,(elAngle)/stride+1)= srpMatrix((azAngle+90)/stride+1,(elAngle)/stride+1) + p; 
      end
 end
@@ -119,6 +130,6 @@ surf(srpMatrix)
 [rowsOfMaxes,colsOfMaxes] = find(srpMatrix == max(srpMatrix(:)));
 azAngleMax = (rowsOfMaxes-1)*stride-90
 elAngleMax = (colsOfMaxes-1)*stride
-
+y
 
 
