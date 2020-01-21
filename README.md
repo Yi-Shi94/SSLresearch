@@ -1,5 +1,5 @@
 # SSLresearch
-sound source localization algorithm research and experiment in STMicorelectroncis
+sound source localization algorithm research experiments.
 
 There are two methods I have implemented in matlab right now.
 1. GCC
